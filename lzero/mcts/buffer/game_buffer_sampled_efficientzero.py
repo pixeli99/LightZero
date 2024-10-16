@@ -404,7 +404,7 @@ class SampledEfficientZeroGameBuffer(EfficientZeroGameBuffer):
                         value_prefix += reward_list[current_index].item()  # * config.discount_factor ** (current_index - base_index)
                         target_value_prefixs.append(value_prefix.item())
                     else:
-                        target_values.append(np.array(0.))
+                        target_values.append(np.array([0.]))
                         target_value_prefixs.append(value_prefix.item())
 
                     value_index += 1

@@ -10,6 +10,12 @@ from ding.utils.default_helper import deep_merge_dicts
 from ding.utils import ENV_REGISTRY
 
 from zoo.metadrive.env.drive_env import MetaDrive
+from zoo.metadrive.env.nuplan_env import ScenarioEnv
+
+import pygame
+import os
+from PIL import Image
+from datetime import datetime
 
 def draw_multi_channels_top_down_observation(obs, show_time=0.5):
     """
@@ -96,7 +102,8 @@ class MetaDriveEnv(BaseEnv):
         """
         # Initialize a raw env
         self._cfg = cfg
-        self._env = MetaDrive(self._cfg)
+        # self._env = MetaDrive(self._cfg)
+        self._env = ScenarioEnv(self._cfg)
         self._init_flag = True
         self._reward_space = gym.spaces.Box(low=-float('inf'), high=float('inf'), shape=(1, ))
         self._action_space = self._env.action_space
@@ -104,6 +111,7 @@ class MetaDriveEnv(BaseEnv):
 
         # bird view
         self.show_bird_view = False
+        self.frames = []
 
     def reset(self, *args, **kwargs) -> Any:
         """
@@ -112,11 +120,37 @@ class MetaDriveEnv(BaseEnv):
         Returns:
             - metadrive_obs (:obj:`dict`): An observation dict for the MetaDrive env which includes ``observation``, ``action_mask``, ``to_play``.
         """
+        # if len(self.frames):
+        #     # imgs = [pygame.surfarray.array3d(frame) for frame in self.frames]
+        #     imgs = [Image.fromarray(img) for img in self.frames]
+        #     imgs[0].save(datetime.now().strftime("demo_%Y%m%d_%H%M%S.gif"), save_all=True, append_images=imgs[1:], duration=50, loop=0)
+        #     print("Gif saved.")
+        # if len(self.frames):
+        #     # 获取当前目录下的所有GIF文件
+        #     gif_files = [f for f in os.listdir('./demo_gifs') if f.endswith('.gif')]
+            
+        #     # 如果GIF文件数量超过10个，删除最早的文件
+        #     if len(gif_files) >= 5:
+        #         # 按文件的修改时间排序，找到最早的文件
+        #         gif_files.sort(key=lambda x: os.path.getmtime(os.path.join('./demo_gifs', x)))
+        #         os.remove(os.path.join('./demo_gifs', gif_files[0]))
+        #         print(f"Deleted oldest GIF: {gif_files[0]}")
+            
+        #     # 将帧数据转换为PIL Image格式
+        #     imgs = [Image.fromarray(img) for img in self.frames]
+            
+        #     # 生成保存的文件名
+        #     filename = datetime.now().strftime("demo_%Y%m%d_%H%M%S.gif")
+            
+        #     # 保存GIF文件
+        #     imgs[0].save(os.path.join('./demo_gifs', filename), save_all=True, append_images=imgs[1:], duration=50, loop=0)
+        #     print(f"Gif saved as {filename}.")
+        
         obs = self._env.reset(*args, **kwargs)
         obs = to_ndarray(obs, dtype=np.float32)
         if isinstance(obs, np.ndarray) and len(obs.shape) == 3:
-            # obs = obs.transpose((2, 0, 1))
-            obs = obs
+            obs = obs.transpose((2, 0, 1))
+            # obs = obs
         elif isinstance(obs, dict):
             vehicle_state = obs['vehicle_state']
             # birdview = obs['birdview'].transpose((2, 0, 1))
@@ -130,6 +164,8 @@ class MetaDriveEnv(BaseEnv):
         metadrive_obs['observation'] = obs 
         metadrive_obs['action_mask'] = None 
         metadrive_obs['to_play'] = -1 
+        
+        self.frames = []
         return metadrive_obs
     
     def step(self, action: np.ndarray = None) -> BaseEnvTimestep:
@@ -147,13 +183,19 @@ class MetaDriveEnv(BaseEnv):
         """
         action = to_ndarray(action)
         obs, rew, done, info = self._env.step(action)
+        done = (done or info["replay_done"])  # replay_done is a flag to indicate the end of the episode
+        frame = self._env.render(mode="top_down",
+                                 window=False,
+                                 target_vehicle_heading_up=False,
+                                 screen_size=(500, 500))
+        self.frames.append(frame)
         if self.show_bird_view:
             draw_multi_channels_top_down_observation(obs, show_time=0.5)
         self._eval_episode_return += rew
         obs = to_ndarray(obs, dtype=np.float32)
         if isinstance(obs, np.ndarray) and len(obs.shape) == 3:
-            # obs = obs.transpose((2, 0, 1))
-            obs = obs
+            obs = obs.transpose((2, 0, 1))
+            # obs = obs
         elif isinstance(obs, dict):
             vehicle_state = obs['vehicle_state']
             # birdview = obs['birdview'].transpose((2, 0, 1))
