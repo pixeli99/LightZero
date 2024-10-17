@@ -21,13 +21,14 @@ reanalyze_ratio = 0.  # Ratio of re-evaluated data.
 # ==============================================================
 # end of the most frequently changed config specified by the user
 # ==============================================================
-
+obs_hw=84
+obs_shape = [5, obs_hw, obs_hw]
 metadrive_sampled_efficientzero_config = dict(
     exp_name=f'data_nuplan/sez_metadrive_old{K}_ns{num_simulations}_upc{update_per_collect}_rr{reanalyze_ratio}_seed0',
     env=dict(
         env_name='MetaDrive',
         continuous=True,
-        obs_shape = [5, 84, 84],
+        obs_shape = obs_shape,
         manually_discretization=False,
         collector_env_num=collector_env_num,
         evaluator_env_num=evaluator_env_num,
@@ -35,7 +36,7 @@ metadrive_sampled_efficientzero_config = dict(
         manager=dict(shared_memory=False, ),
         metadrive=dict(
             use_render=False,
-            num_scenarios=1500,
+            num_scenarios=1,
             distance_penalty=0.01,
             data_directory=AssetLoader.file_path("/zju_0038/pengxiang_workspace/OpenDataLab___nuPlan-v1_dot_1/raw", "metadrive", unix_style=False),
             reactive_traffic=True,
@@ -43,12 +44,13 @@ metadrive_sampled_efficientzero_config = dict(
             sequential_seed=False,
             crash_vehicle_done=True,
             crash_object_done=True,
-            crash_human_done=True
+            crash_human_done=True,
+            obs_hw=obs_hw,
         ),
     ),
     policy=dict(
         model=dict(
-            observation_shape=[5, 84, 84],
+            observation_shape=obs_shape,
             action_space_size=2,
             continuous_action_space=continuous_action_space,
             num_of_sampled_actions=K,
@@ -102,4 +104,8 @@ create_config = metadrive_sampled_efficientzero_create_config
 if __name__ == "__main__":
 
     from lzero.entry import train_muzero
-    train_muzero([main_config, create_config], seed=1, max_env_step=max_env_step, model_path="/zju_0038/pengxiang_workspace/ckpt_best.pth.tar")
+    train_muzero([main_config, create_config],
+                 seed=1,
+                 max_env_step=max_env_step,
+                 model_path="./data_nuplan/sez_metadrive_old20_ns50_upc200_rr0.0_seed0/ckpt/iteration_270000.pth.tar")
+    

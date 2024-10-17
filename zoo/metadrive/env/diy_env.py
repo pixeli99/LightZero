@@ -1,13 +1,10 @@
 """
 This environment can load all scenarios exported from other environments via env.export_scenarios()
 """
-import gym
 
 import numpy as np
-# from metadrive.obs.top_down_obs_multi_channel import TopDownMultiChannel
 from metadrive.component.navigation_module.edge_network_navigation import EdgeNetworkNavigation
 from metadrive.component.navigation_module.trajectory_navigation import TrajectoryNavigation
-from metadrive.component.navigation_module.node_network_navigation import NodeNetworkNavigation
 from metadrive.constants import DEFAULT_AGENT
 from metadrive.constants import TerminationState
 from metadrive.engine.asset_loader import AssetLoader
@@ -21,8 +18,6 @@ from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.utils import get_np_random
 from metadrive.utils.math import wrap_to_pi
 
-from metadrive.scenario.scenario_description import ScenarioDescription
-
 from zoo.metadrive.env.obs_custom import TopDownMultiChannel
 
 SCENARIO_ENV_CONFIG = dict(
@@ -33,7 +28,6 @@ SCENARIO_ENV_CONFIG = dict(
     sequential_seed=False,  # Whether to set seed (the index of map) sequentially across episodes
     worker_index=0,  # Allowing multi-worker sampling with Rllib
     num_workers=1,  # Allowing multi-worker sampling with Rllib
-    obs_hw=84,
 
     # ===== Curriculum Config =====
     curriculum_level=1,  # i.e. set to 5 to split the data into 5 difficulty level
@@ -63,7 +57,9 @@ SCENARIO_ENV_CONFIG = dict(
     # ===== Agent config =====
     vehicle_config=dict(
         navigation_module=TrajectoryNavigation,
-        lidar=dict(num_lasers=0, distance=0),
+        lidar=dict(num_lasers=120, distance=50),
+        lane_line_detector=dict(num_lasers=0, distance=50),
+        side_detector=dict(num_lasers=12, distance=50),
     ),
 
     # ===== Reward Scheme =====
@@ -74,7 +70,6 @@ SCENARIO_ENV_CONFIG = dict(
     crash_vehicle_penalty=1.,
     crash_object_penalty=1.0,
     crash_human_penalty=1.0,
-    distance_penalty=1.0,
     driving_reward=1.0,
     steering_range_penalty=0.5,
     heading_penalty=1.0,
@@ -110,7 +105,6 @@ class ScenarioEnv(BaseEnv):
 
     def __init__(self, config=None):
         super(ScenarioEnv, self).__init__(config)
-        self.raw_cfg = config.metadrive
         if self.config["curriculum_level"] > 1:
             assert self.config["num_scenarios"] % self.config["curriculum_level"] == 0, \
                 "Each level should have the same number of scenarios"
@@ -122,36 +116,6 @@ class ScenarioEnv(BaseEnv):
                 "If using > 1 workers, you have to allow sequential_seed for consistency!"
         self.start_index = self.config["start_scenario_index"]
         self.num_scenarios = self.config["num_scenarios"]
-        self.init_flag = False
-
-    @property
-    def observation_space(self):
-        return gym.spaces.Box(0, 1, shape=(self.config.obs_hw, self.config.obs_hw, 5), dtype=np.float32)
-
-    @property
-    def action_space(self):
-        return gym.spaces.Box(-1, 1, shape=(2, ), dtype=np.float32)
-
-    @property
-    def reward_space(self):
-        return gym.spaces.Box(-100, 100, shape=(1, ), dtype=np.float32)
-    
-    def reset(self):
-        if not self.init_flag:
-            super(ScenarioEnv, self).__init__(self.raw_cfg)
-            self.init_flag = True
-        obs = super().reset()
-        return obs
-
-    def _get_reset_return(self):
-        ret = {}
-        self.engine.after_step()
-        self._compute_navi_dist = True 
-        self.already_go_dist = 0
-        for v_id, v in self.vehicles.items():
-            self.observations[v_id].reset(self, v)
-            ret[v_id] = self.observations[v_id].observe(v)
-        return ret if self.is_multi_agent else self._wrap_as_single_agent(ret)
 
     def setup_engine(self):
         super(ScenarioEnv, self).setup_engine()
@@ -229,12 +193,6 @@ class ScenarioEnv(BaseEnv):
         )
 
         return done, done_info
-
-    def step(self, actions):
-        actions = self._preprocess_actions(actions)
-        engine_info = self._step_simulator(actions)
-        o, r, d, _, i = self._get_step_return(actions, engine_info=engine_info)
-        return o, r, d, i
 
     def cost_function(self, vehicle_id: str):
         vehicle = self.agents[vehicle_id]
@@ -333,48 +291,48 @@ class ScenarioEnv(BaseEnv):
         step_info["step_reward_lateral"] = lateral_penalty
         step_info["step_reward_heading"] = heading_penalty
         step_info["step_reward_action_smooth"] = steering_range_penalty
-
-        # Compute state difference metrics for reward
-        # TODO LQY: Shall we use state difference as reward?
-        data = self.engine.data_manager.current_scenario
-        agent_xy = vehicle.position
-        if vehicle_id == "sdc" or vehicle_id == "default_agent":
-            native_vid = data[ScenarioDescription.METADATA][ScenarioDescription.SDC_ID]
-        else:
-            native_vid = vehicle_id
-        
-        if native_vid in data["tracks"] and len(data["tracks"][native_vid]) > 0:
-            expert_state_list = data["tracks"][native_vid]["state"]
-        
-            mask = expert_state_list["valid"]
-            largest_valid_index = np.max(np.where(mask == True)[0])
-        
-            if self.episode_step > largest_valid_index:
-                current_step = largest_valid_index
-            else:
-                current_step = self.episode_step
-        
-            while mask[current_step] == 0.0:
-                current_step -= 1
-                if current_step == 0:
-                    break
-        
-            expert_xy = expert_state_list["position"][current_step][:2]
-            diff = agent_xy - expert_xy
-            dist = np.linalg.norm(diff)
-            step_info["distance_error"] = dist
-        
-            last_state = expert_state_list["position"][largest_valid_index]
-            last_expert_xy = last_state[:2]
-            diff = agent_xy - last_expert_xy
-            last_dist = np.linalg.norm(diff)
-            step_info["distance_error_final"] = last_dist
-        reward = reward - self.config["distance_penalty"] * dist
-
-        if hasattr(vehicle, "_dynamics_mode"):
-            step_info["dynamics_mode"] = vehicle._dynamics_mode
-        
         return reward, step_info
+
+    # Compute state difference metrics for reward
+    # TODO LQY: Shall we use state difference as reward?
+    # data = self.engine.data_manager.current_scenario
+    # agent_xy = vehicle.position
+    # if vehicle_id == "sdc" or vehicle_id == "default_agent":
+    #     native_vid = data[ScenarioDescription.METADATA][ScenarioDescription.SDC_ID]
+    # else:
+    #     native_vid = vehicle_id
+    #
+    # if native_vid in data["tracks"] and len(data["tracks"][native_vid]) > 0:
+    #     expert_state_list = data["tracks"][native_vid]["state"]
+    #
+    #     mask = expert_state_list["valid"]
+    #     largest_valid_index = np.max(np.where(mask == True)[0])
+    #
+    #     if self.episode_step > largest_valid_index:
+    #         current_step = largest_valid_index
+    #     else:
+    #         current_step = self.episode_step
+    #
+    #     while mask[current_step] == 0.0:
+    #         current_step -= 1
+    #         if current_step == 0:
+    #             break
+    #
+    #     expert_xy = expert_state_list["position"][current_step][:2]
+    #     diff = agent_xy - expert_xy
+    #     dist = norm(diff[0], diff[1])
+    #     step_info["distance_error"] = dist
+    #
+    #     last_state = expert_state_list["position"][largest_valid_index]
+    #     last_expert_xy = last_state[:2]
+    #     diff = agent_xy - last_expert_xy
+    #     last_dist = norm(diff[0], diff[1])
+    #     step_info["distance_error_final"] = last_dist
+
+    # reward = reward - self.config["distance_penalty"] * dist
+
+    # if hasattr(vehicle, "_dynamics_mode"):
+    #     step_info["dynamics_mode"] = vehicle._dynamics_mode
 
     @staticmethod
     def _is_arrive_destination(vehicle):
@@ -416,9 +374,6 @@ class ScenarioEnv(BaseEnv):
                 self.config["start_scenario_index"],
                 self.config["start_scenario_index"] + int(self.config["num_scenarios"])
             )
-            print('-' * 100)
-            print("Random Seed: ", current_seed)
-            print('-' * 100)
 
         assert self.config["start_scenario_index"] <= current_seed < self.config["start_scenario_index"] + \
                self.config["num_scenarios"], "Scenario Index (force seed) {} is out of range [{}, {}).".format(
@@ -426,17 +381,14 @@ class ScenarioEnv(BaseEnv):
             self.config["start_scenario_index"] + self.config["num_scenarios"])
         self.seed(current_seed)
     
-    def _get_observations(self):
-        return {DEFAULT_AGENT: self.get_single_observation()}
-
     def get_single_observation(self, _=None):
         return TopDownMultiChannel(
             self.config["vehicle_config"],
             False,
             False,
             frame_stack=3,
-            post_stack=10,
+            post_stack=100,
             frame_skip=1,
-            resolution=(self.config.obs_hw, self.config.obs_hw),
-            max_distance=36,
+            resolution=(256, 256),
+            max_distance=50
         )

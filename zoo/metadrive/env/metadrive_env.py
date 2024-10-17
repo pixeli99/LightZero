@@ -17,6 +17,42 @@ import os
 from PIL import Image
 from datetime import datetime
 
+def obs2rgb(obs):
+    """
+    Overview:
+        Combine a multi-channel top-down observation into a single RGB image.
+    Auguments:
+    - obs (:obj:`numpy.ndarray`): A 3D NumPy array of shape (height, width, 5) representing the observation data,
+                    where the last dimension corresponds to the five distinct channels.
+    Returns:
+    - rgb_image (:obj:`numpy.ndarray`): A 3D NumPy array of shape (height, width, 3) representing the RGB image.
+    """
+    # Validate that there are exactly five channels in the observation data.
+    num_channels = obs.shape[-1]
+    assert num_channels == 5, "The observation data must have exactly 5 channels."
+    
+    # Normalize each channel to be within the range [0, 1]
+    obs_normalized = np.clip(obs, 0, 1)
+    
+    # Define weights for the RGB channels (these can vary depending on the desired styling)
+    # Each channel is mapped to a unique color in the resulting RGB space
+    r_weight = np.array([1, 0, 0, 0.5, 0])  # Red influence from Channels 0 and 3
+    g_weight = np.array([0, 1, 0, 0.5, 0])  # Green influence from Channels 1 and 3
+    b_weight = np.array([0, 0, 1, 0, 1])    # Blue influence from Channels 2 and 4
+    
+    # Create the RGB image by combining the weighted channels
+    r = np.sum(obs_normalized * r_weight, axis=-1)
+    g = np.sum(obs_normalized * g_weight, axis=-1)
+    b = np.sum(obs_normalized * b_weight, axis=-1)
+    
+    # Stack the arrays along the last axis to form an RGB image
+    rgb_image = np.stack([r, g, b], axis=-1)
+    
+    # Clip the resulting image to ensure values are within [0, 1]
+    rgb_image = np.clip(rgb_image, 0, 1)
+    
+    return rgb_image
+
 def draw_multi_channels_top_down_observation(obs, show_time=0.5):
     """
     Overview:
@@ -65,11 +101,12 @@ def draw_multi_channels_top_down_observation(obs, show_time=0.5):
     # Start the timer to initiate the automatic closing of the figure.
     timer.start()
     
+    plt.savefig('1.jpg')
     # Display the figure with the multi-channel observation data.
-    plt.show()
+    # plt.show()
     
     # Close the figure after it has been displayed for the specified duration.
-    plt.close()  # Explicitly close the figure to ensure it is properly closed.
+    # plt.close()  # Explicitly close the figure to ensure it is properly closed.
 
 @ENV_REGISTRY.register('metadrive_lightzero')
 class MetaDriveEnv(BaseEnv):
@@ -110,8 +147,9 @@ class MetaDriveEnv(BaseEnv):
         self._observation_space = self._env.observation_space
 
         # bird view
-        self.show_bird_view = False
+        self.show_bird_view = True
         self.frames = []
+        self.obs_rec = []
 
     def reset(self, *args, **kwargs) -> Any:
         """
@@ -120,31 +158,51 @@ class MetaDriveEnv(BaseEnv):
         Returns:
             - metadrive_obs (:obj:`dict`): An observation dict for the MetaDrive env which includes ``observation``, ``action_mask``, ``to_play``.
         """
-        # if len(self.frames):
-        #     # imgs = [pygame.surfarray.array3d(frame) for frame in self.frames]
-        #     imgs = [Image.fromarray(img) for img in self.frames]
-        #     imgs[0].save(datetime.now().strftime("demo_%Y%m%d_%H%M%S.gif"), save_all=True, append_images=imgs[1:], duration=50, loop=0)
-        #     print("Gif saved.")
-        # if len(self.frames):
-        #     # 获取当前目录下的所有GIF文件
-        #     gif_files = [f for f in os.listdir('./demo_gifs') if f.endswith('.gif')]
+        if len(self.frames):
+            # 获取当前目录下的所有GIF文件
+            gif_files = [f for f in os.listdir('./demo_gifs') if f.endswith('.gif')]
             
-        #     # 如果GIF文件数量超过10个，删除最早的文件
-        #     if len(gif_files) >= 5:
-        #         # 按文件的修改时间排序，找到最早的文件
-        #         gif_files.sort(key=lambda x: os.path.getmtime(os.path.join('./demo_gifs', x)))
-        #         os.remove(os.path.join('./demo_gifs', gif_files[0]))
-        #         print(f"Deleted oldest GIF: {gif_files[0]}")
+            # 如果GIF文件数量超过5个，删除最早的文件
+            if len(gif_files) >= 5:
+                # 按文件的修改时间排序，找到最早的文件
+                try:
+                    gif_files.sort(key=lambda x: os.path.getmtime(os.path.join('./demo_gifs', x)))
+                    os.remove(os.path.join('./demo_gifs', gif_files[0]))
+                except:
+                    pass
+                print(f"Deleted oldest GIF: {gif_files[0]}")
             
-        #     # 将帧数据转换为PIL Image格式
-        #     imgs = [Image.fromarray(img) for img in self.frames]
+            combined_frames = []
+            for cur_obs, frame in zip(self.obs_rec, self.frames):
+                # 将obs和frame的像素值从[0,1]转换到[0,255]并转换为uint8
+                cur_obs_uint8 = (cur_obs * 255).astype(np.uint8)
+                frame_uint8 = frame.astype(np.uint8)
+                
+                # 使用PIL将NumPy数组转换为Image对象
+                img_obs = Image.fromarray(cur_obs_uint8)
+                img_frame = Image.fromarray(frame_uint8)
+                
+                img_obs_resized = img_obs.resize((84, 84))
+                img_frame_resized = img_frame.resize((84, 84))
+                
+                # 将调整大小后的Image对象转换回NumPy数组
+                arr_obs_resized = np.array(img_obs_resized)
+                arr_frame_resized = np.array(img_frame_resized)
+                
+                # 拼接图像，沿宽度方向（axis=1）
+                combined = np.concatenate((arr_obs_resized, arr_frame_resized), axis=1)
+                combined_frames.append(combined)
             
-        #     # 生成保存的文件名
-        #     filename = datetime.now().strftime("demo_%Y%m%d_%H%M%S.gif")
+            # 将合并后的帧转换为PIL Image格式
+            imgs = [Image.fromarray(img) for img in combined_frames]
             
-        #     # 保存GIF文件
-        #     imgs[0].save(os.path.join('./demo_gifs', filename), save_all=True, append_images=imgs[1:], duration=50, loop=0)
-        #     print(f"Gif saved as {filename}.")
+            # 生成保存的文件名
+            filename = datetime.now().strftime("demo_%Y%m%d_%H%M%S.gif")
+            
+            # 保存GIF文件
+            imgs[0].save(os.path.join('./demo_gifs', filename), save_all=True, append_images=imgs[1:], duration=100, loop=0)
+            print(f"Gif saved as {filename}.")
+
         
         obs = self._env.reset(*args, **kwargs)
         obs = to_ndarray(obs, dtype=np.float32)
@@ -166,6 +224,7 @@ class MetaDriveEnv(BaseEnv):
         metadrive_obs['to_play'] = -1 
         
         self.frames = []
+        self.obs_rec = []
         return metadrive_obs
     
     def step(self, action: np.ndarray = None) -> BaseEnvTimestep:
@@ -189,6 +248,7 @@ class MetaDriveEnv(BaseEnv):
                                  target_vehicle_heading_up=False,
                                  screen_size=(500, 500))
         self.frames.append(frame)
+        self.obs_rec.append(obs2rgb(obs))
         if self.show_bird_view:
             draw_multi_channels_top_down_observation(obs, show_time=0.5)
         self._eval_episode_return += rew
