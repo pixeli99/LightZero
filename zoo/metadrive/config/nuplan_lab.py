@@ -14,7 +14,7 @@ n_episode = 8  # Episodes collected per cycle.
 evaluator_env_num = 3  # Environments for evaluation.
 num_simulations = 50  # MCTS simulations per step.
 update_per_collect = 200  # Updates per data collection.
-batch_size = 64  # Samples per training update.
+batch_size = 256  # Samples per training update.
 max_env_step = int(1e6)  # Total training steps.
 
 reanalyze_ratio = 0.  # Ratio of re-evaluated data.
@@ -36,7 +36,7 @@ metadrive_sampled_efficientzero_config = dict(
         manager=dict(shared_memory=False, ),
         metadrive=dict(
             use_render=False,
-            num_scenarios=1,
+            num_scenarios=1800,
             distance_penalty=0.01,
             data_directory=AssetLoader.file_path("/zju_0038/pengxiang_workspace/OpenDataLab___nuPlan-v1_dot_1/raw", "metadrive", unix_style=False),
             reactive_traffic=True,
@@ -107,5 +107,5 @@ if __name__ == "__main__":
     train_muzero([main_config, create_config],
                  seed=1,
                  max_env_step=max_env_step,
-                 model_path="./data_nuplan/sez_metadrive_old20_ns50_upc200_rr0.0_seed0/ckpt/iteration_270000.pth.tar")
+                 model_path="/zju_0038/pengxiang_workspace/iteration_260000.pth.tar")
     

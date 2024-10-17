@@ -4,7 +4,7 @@ import numpy as np
 
 if __name__ == "__main__":
     # model_path = "./ckpt/ckpt_best.pth.tar"
-    model_path = "./data_nuplan/sez_metadrive_old20_ns50_upc200_rr0.0_seed0/ckpt/iteration_270000.pth.tar"
+    model_path = "/zju_0038/pengxiang_workspace/iteration_260000.pth.tar"
     returns_mean_seeds = []
     returns_seeds = []
     seeds = [0]

@@ -182,8 +182,8 @@ class TopDownMultiChannel(TopDownObservation):
             diff = (diff[1], diff[0])
             p = pygame.math.Vector2(tuple(diff))
             # p = pygame.math.Vector2(p)
-            p = p.rotate(90)
-            p = (-p[1], p[0])
+            p = p.rotate(np.rad2deg(ego_heading) + 90)
+            p = (p[1], p[0])
             p = (
                 clip(p[0] + self.resolution[0] / 2, -self.resolution[0],
                      self.resolution[0]), clip(p[1] + self.resolution[1] / 2, -self.resolution[1], self.resolution[1])
@@ -200,7 +200,7 @@ class TopDownMultiChannel(TopDownObservation):
                 # navigation=self.canvas_navigation,
             ),
             position=pos,
-            heading=0
+            heading=vehicle.heading_theta
         )
         ret["past_pos"] = self.canvas_past_pos
         return ret

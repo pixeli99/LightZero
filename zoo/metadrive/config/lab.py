@@ -67,19 +67,37 @@ def draw_multi_channels_top_down_observation(obs, show_time=4):
 
 if __name__ == "__main__":
     print(HELP_MESSAGE)
-    env = ScenarioEnv(
-    {
-        "reactive_traffic": False,
-        "use_render": threeD_render,
-        "agent_policy": ReplayEgoCarPolicy,
-        "data_directory": nuscenes_data,
-        "num_scenarios": 1,
-    }
-)
+    # env = ScenarioEnv(
+    # {
+    #     "reactive_traffic": False,
+    #     "use_render": threeD_render,
+    #     "agent_policy": ReplayEgoCarPolicy,
+    #     "data_directory": nuscenes_data,
+    #     "num_scenarios": 1,
+    # }
+    # )
+    env = TopDownMetaDrive(
+        dict(
+            # We also support using two renderer (Panda3D renderer and Pygame renderer) simultaneously. You can
+            # try this by uncommenting next line.
+            # use_render=True,
+
+            # You can also try to uncomment next line with "use_render=True", so that you can control the ego vehicle
+            # with keyboard in the main window.
+            # manual_control=True,
+            map="X",
+            traffic_density=0.1,
+            num_scenarios=100,
+            start_seed=random.randint(0, 1000),
+            post_stack=100,
+            frame_skip=1,
+        )
+    )
     try:
         o, _ = env.reset()
         for i in range(1, 100000):
-            o, r, tm, tc, info = env.step([1.0, 0.])
+            # o, r, tm, tc, info = env.step([1.0, 0.])
+            o, r, tm, tc, info = env.step(expert(env.agent))
             env.render(mode="top_down", text={"Quit": "ESC"}, film_size=(2000, 2000))
             if tm or tc:
                 env.reset()
