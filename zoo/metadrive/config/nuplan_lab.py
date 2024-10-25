@@ -9,15 +9,15 @@ from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 # ==============================================================
 continuous_action_space = True
 K = 20  # Number of sampled actions for MCTS.
-collector_env_num = 8  # Parallel environments for data collection.
-n_episode = 8  # Episodes collected per cycle.
+collector_env_num = 128  # Parallel environments for data collection.
+n_episode = 128  # Episodes collected per cycle.
 evaluator_env_num = 3  # Environments for evaluation.
 num_simulations = 50  # MCTS simulations per step.
 update_per_collect = 200  # Updates per data collection.
-batch_size = 256  # Samples per training update.
+batch_size = 2048  # Samples per training update.
 max_env_step = int(1e6)  # Total training steps.
 
-reanalyze_ratio = 0.  # Ratio of re-evaluated data.
+reanalyze_ratio = 1.0  # Ratio of re-evaluated data.
 # ==============================================================
 # end of the most frequently changed config specified by the user
 # ==============================================================
@@ -35,16 +35,22 @@ metadrive_sampled_efficientzero_config = dict(
         n_evaluator_episode=evaluator_env_num,
         manager=dict(shared_memory=False, ),
         metadrive=dict(
+            log_level=50,
             use_render=False,
+            start_scenario_index=0,
             num_scenarios=1800,
+            curriculum_level=1,
             distance_penalty=0.01,
             data_directory=AssetLoader.file_path("/zju_0038/pengxiang_workspace/OpenDataLab___nuPlan-v1_dot_1/raw", "metadrive", unix_style=False),
-            reactive_traffic=True,
-            truncate_as_terminate=True,
+            reactive_traffic=False,
+            truncate_as_terminate=False,
             sequential_seed=False,
             crash_vehicle_done=True,
             crash_object_done=True,
             crash_human_done=True,
+            out_of_road_penalty=40.0,
+            crash_vehicle_penalty=40.0,
+            no_negative_reward=True,
             obs_hw=obs_hw,
         ),
     ),
@@ -63,12 +69,12 @@ metadrive_sampled_efficientzero_config = dict(
         ),
         cuda=True,
         env_type='not_board_games',
-        game_segment_length=50,
+        game_segment_length=200, # check nuplan dataset
         update_per_collect=update_per_collect,
         batch_size=batch_size,
         optim_type='Adam',
         lr_piecewise_constant_decay=False,
-        learning_rate=0.003,
+        learning_rate=0.0005,
         # NOTE: for continuous gaussian policy, we use the policy_entropy_loss as in the original Sampled MuZero paper.
         policy_entropy_loss_weight=5e-3,
         num_simulations=num_simulations,
@@ -107,5 +113,5 @@ if __name__ == "__main__":
     train_muzero([main_config, create_config],
                  seed=1,
                  max_env_step=max_env_step,
-                 model_path="/zju_0038/pengxiang_workspace/iteration_260000.pth.tar")
+                 model_path="/zju_0038/pengxiang_workspace/demo_code/LightZero/data_nuplan/idm_false_8_3/ckpt/iteration_100000.pth.tar")
     

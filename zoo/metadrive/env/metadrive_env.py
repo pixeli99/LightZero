@@ -147,7 +147,7 @@ class MetaDriveEnv(BaseEnv):
         self._observation_space = self._env.observation_space
 
         # bird view
-        self.show_bird_view = True
+        self.show_bird_view = False
         self.frames = []
         self.obs_rec = []
 
@@ -158,7 +158,7 @@ class MetaDriveEnv(BaseEnv):
         Returns:
             - metadrive_obs (:obj:`dict`): An observation dict for the MetaDrive env which includes ``observation``, ``action_mask``, ``to_play``.
         """
-        if len(self.frames):
+        if len(self.frames) > 1 and self.show_bird_view:
             # 获取当前目录下的所有GIF文件
             gif_files = [f for f in os.listdir('./demo_gifs') if f.endswith('.gif')]
             
@@ -182,15 +182,17 @@ class MetaDriveEnv(BaseEnv):
                 img_obs = Image.fromarray(cur_obs_uint8)
                 img_frame = Image.fromarray(frame_uint8)
                 
-                img_obs_resized = img_obs.resize((84, 84))
-                img_frame_resized = img_frame.resize((84, 84))
+                # img_obs_resized = img_obs.resize((512, 512))
+                # img_frame_resized = img_frame.resize((512, 512))
                 
                 # 将调整大小后的Image对象转换回NumPy数组
-                arr_obs_resized = np.array(img_obs_resized)
-                arr_frame_resized = np.array(img_frame_resized)
+                # arr_obs_resized = np.array(img_obs_resized)
+                # arr_frame_resized = np.array(img_frame_resized)
                 
                 # 拼接图像，沿宽度方向（axis=1）
-                combined = np.concatenate((arr_obs_resized, arr_frame_resized), axis=1)
+                # combined = np.concatenate((arr_obs_resized, arr_frame_resized), axis=1)
+                
+                combined = np.array(img_frame)
                 combined_frames.append(combined)
             
             # 将合并后的帧转换为PIL Image格式

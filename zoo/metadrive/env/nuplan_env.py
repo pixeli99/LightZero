@@ -435,7 +435,7 @@ class ScenarioEnv(BaseEnv):
             False,
             False,
             frame_stack=3,
-            post_stack=100,
+            post_stack=10,
             frame_skip=1,
             resolution=(self.config.obs_hw, self.config.obs_hw),
             max_distance=36,
