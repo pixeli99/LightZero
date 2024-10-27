@@ -147,7 +147,7 @@ class MetaDriveEnv(BaseEnv):
         self._observation_space = self._env.observation_space
 
         # bird view
-        self.show_bird_view = False
+        self.show_bird_view = True
         self.frames = []
         self.obs_rec = []
 
@@ -202,7 +202,7 @@ class MetaDriveEnv(BaseEnv):
             filename = datetime.now().strftime("demo_%Y%m%d_%H%M%S.gif")
             
             # 保存GIF文件
-            imgs[0].save(os.path.join('./demo_gifs', filename), save_all=True, append_images=imgs[1:], duration=100, loop=0)
+            imgs[0].save(os.path.join('./demo_gifs', filename), save_all=True, append_images=imgs[1:], duration=50, loop=0)
             print(f"Gif saved as {filename}.")
 
         

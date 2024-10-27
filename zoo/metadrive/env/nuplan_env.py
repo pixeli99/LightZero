@@ -97,7 +97,9 @@ SCENARIO_ENV_CONFIG = dict(
 
     # ===== others =====
     allowed_more_steps=None,  # horizon, None=infinite
-    top_down_show_real_size=False
+    top_down_show_real_size=False,
+    
+    # agent_policy=ReplayEgoCarPolicy
 )
 
 
@@ -227,7 +229,8 @@ class ScenarioEnv(BaseEnv):
         self.engine.curriculum_manager.log_episode(
             done_info[TerminationState.SUCCESS], vehicle.navigation.route_completion
         )
-
+        if done:
+            print(done_info)
         return done, done_info
 
     def step(self, actions):

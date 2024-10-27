@@ -15,18 +15,20 @@ env = ScenarioEnv(
     {
         "reactive_traffic": False,
         "use_render": threeD_render,
-        "agent_policy": IDMPolicy,
+        "agent_policy": ReplayEgoCarPolicy,
         "data_directory": nuscenes_data,
-        "num_scenarios": 20,
+        "num_scenarios": 1,
+        "start_scenario_index": 1067,
     }
 )
 
 try:
     scenarios={}
-    for seed in range(5):
+    idx = 0
+    for seed in range(1066, 1066+5):
         print("\nSimulate Scenario: {}".format(seed))
-        o, _ = env.reset(seed=seed+10)
-        semantic_map = seed == 1
+        o, _ = env.reset()
+        semantic_map = seed == 100
         for i in range(1, 100000):
             o, r, tm, tc, info = env.step([0, 3])
             env.render(mode="top_down", 
@@ -39,7 +41,8 @@ try:
             if info["replay_done"]:
                 print(i)
                 break
-        scenarios[seed]=env.top_down_renderer.screen_frames
+        scenarios[idx]=env.top_down_renderer.screen_frames
+        idx += 1
 finally:
     env.close()
 

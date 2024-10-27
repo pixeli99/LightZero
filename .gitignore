@@ -1,5 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 ### ArchLinuxPackages template
+data_nuplan/
+lz_result/
 *.tar
 *.tar.*
 *.jar

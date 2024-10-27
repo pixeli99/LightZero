@@ -526,6 +526,7 @@ class SampledEfficientZeroMCTSCtree(object):
 
                 # obtain the search horizon for leaf nodes
                 search_lens = results.get_search_len()
+                print(search_lens)
                 # obtain the latent state for leaf node
                 for ix, iy in zip(latent_state_index_in_search_path, latent_state_index_in_batch):
                     latent_states.append(latent_state_batch_in_search_path[ix][iy])

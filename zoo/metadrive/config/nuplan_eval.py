@@ -1,13 +1,14 @@
-from zoo.metadrive.config.nuplan_lab import main_config, create_config
+# from zoo.metadrive.config.nuplan_lab import main_config, create_config
+from zoo.metadrive.config.nuplan_one_scene import main_config, create_config
 from lzero.entry import eval_muzero
 import numpy as np
 
 if __name__ == "__main__":
     # model_path = "./ckpt/ckpt_best.pth.tar"
-    model_path = "/zju_0038/pengxiang_workspace/demo_code/LightZero/data_nuplan/sez_metadrive_old20_ns50_upc200_rr0.0_seed0/ckpt/iteration_300000.pth.tar"
+    model_path = "/zju_0038/pengxiang_workspace/demo_code/LightZero/data_nuplan/single_scene/ckpt/iteration_50000.pth.tar"
     returns_mean_seeds = []
     returns_seeds = []
-    seeds = [0,1,2,3,4,5,6,7,8,9,10]
+    seeds = [111,]
     num_episodes_each_seed = 1
     total_test_episodes = num_episodes_each_seed * len(seeds)
     create_config.env_manager.type = 'base'  # Visualization requires the 'type' to be set as base

@@ -9,12 +9,12 @@ from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 # ==============================================================
 continuous_action_space = True
 K = 20  # Number of sampled actions for MCTS.
-collector_env_num = 128  # Parallel environments for data collection.
-n_episode = 128  # Episodes collected per cycle.
-evaluator_env_num = 3  # Environments for evaluation.
+collector_env_num = 1  # Parallel environments for data collection.
+n_episode = 1  # Episodes collected per cycle.
+evaluator_env_num = 1  # Environments for evaluation.
 num_simulations = 50  # MCTS simulations per step.
-update_per_collect = 200  # Updates per data collection.
-batch_size = 2048  # Samples per training update.
+update_per_collect = 20  # Updates per data collection.
+batch_size = 64  # Samples per training update.
 max_env_step = int(1e6)  # Total training steps.
 
 reanalyze_ratio = 0.0  # Ratio of re-evaluated data.
@@ -37,8 +37,8 @@ metadrive_sampled_efficientzero_config = dict(
         metadrive=dict(
             log_level=50,
             use_render=False,
-            start_scenario_index=0,
-            num_scenarios=1800,
+            start_scenario_index=1067,
+            num_scenarios=1,
             curriculum_level=1,
             distance_penalty=0.01,
             data_directory=AssetLoader.file_path("/zju_0038/pengxiang_workspace/OpenDataLab___nuPlan-v1_dot_1/raw", "metadrive", unix_style=False),
