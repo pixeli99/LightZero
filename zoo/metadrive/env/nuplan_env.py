@@ -229,8 +229,6 @@ class ScenarioEnv(BaseEnv):
         self.engine.curriculum_manager.log_episode(
             done_info[TerminationState.SUCCESS], vehicle.navigation.route_completion
         )
-        if done:
-            print(done_info)
         return done, done_info
 
     def step(self, actions):

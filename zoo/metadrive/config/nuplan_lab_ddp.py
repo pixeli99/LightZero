@@ -7,7 +7,7 @@ from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 # ==============================================================
 # begin of the most frequently changed config specified by the user
 # ==============================================================
-gpu_num = 1
+gpu_num = 2
 continuous_action_space = True
 K = 20  # Number of sampled actions for MCTS.
 collector_env_num = 64  # Parallel environments for data collection.
@@ -15,7 +15,7 @@ n_episode = int(64*gpu_num)  # Episodes collected per cycle.
 evaluator_env_num = 3  # Environments for evaluation.
 num_simulations = 50  # MCTS simulations per step.
 update_per_collect = 200  # Updates per data collection.
-batch_size = 1024  # Samples per training update.
+batch_size = 2048  # Samples per training update.
 max_env_step = int(1e6)  # Total training steps.
 
 reanalyze_ratio = 0.0  # Ratio of re-evaluated data.
@@ -68,11 +68,11 @@ metadrive_sampled_efficientzero_config = dict(
             downsample = True,
             image_channel=5,
         ),
-        multi_gpu=False,
+        multi_gpu=True,
         cuda=True,
         env_type='not_board_games',
-        game_segment_length=150, # check nuplan dataset
-        update_per_collect=None,
+        game_segment_length=200, # check nuplan dataset
+        update_per_collect=update_per_collect,
         batch_size=batch_size,
         optim_type='Adam',
         lr_piecewise_constant_decay=False,
@@ -110,17 +110,10 @@ metadrive_sampled_efficientzero_create_config = dict(
 metadrive_sampled_efficientzero_create_config = EasyDict(metadrive_sampled_efficientzero_create_config)
 create_config = metadrive_sampled_efficientzero_create_config
 if __name__ == "__main__":
-
+    #  python -m torch.distributed.launch --nproc_per_node=2 ./zoo/metadrive/config/nuplan_lab_ddp.py
+    from ding.utils import DDPContext
     from lzero.entry import train_muzero
-    train_muzero([main_config, create_config],
-                 seed=1,
-                 max_env_step=max_env_step,
-                 model_path="/zju_0038/pengxiang_workspace/demo_code/LightZero/data_nuplan/resume_002/ckpt/iteration_40000.pth.tar")
-    
-    # from ding.utils import DDPContext
-    # from lzero.entry import train_muzero
-    # from lzero.config.utils import lz_to_ddp_config
-    # with DDPContext():
-    #     main_config = lz_to_ddp_config(main_config)
-    #     train_muzero([main_config, create_config], seed=0, max_env_step=max_env_step,
-    #                  model_path="/zju_0038/pengxiang_workspace/demo_code/LightZero/data_nuplan/sez_metadrive_old20_ns50_upc200_rr0.0_seed0/ckpt/iteration_20000.pth.tar")
+    from lzero.config.utils import lz_to_ddp_config
+    with DDPContext():
+        main_config = lz_to_ddp_config(main_config)
+        train_muzero([main_config, create_config], seed=1, max_env_step=max_env_step)

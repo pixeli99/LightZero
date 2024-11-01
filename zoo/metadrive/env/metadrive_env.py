@@ -147,7 +147,7 @@ class MetaDriveEnv(BaseEnv):
         self._observation_space = self._env.observation_space
 
         # bird view
-        self.show_bird_view = True
+        self.show_bird_view = False
         self.frames = []
         self.obs_rec = []
 
